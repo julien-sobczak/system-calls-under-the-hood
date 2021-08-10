@@ -1,0 +1,78 @@
+# System Calls Under the Hood
+
+This repository is the companion of the blog post link:https://www.juliensobczak.com/inspect/2021/08/10/linux-system-calls-under-the-hood.html[Linux System Calls Under the Hood].
+
+## Source Files
+
+[source]
+----
+.
+├── README.adoc             ; This file
+├── Vagrantfile             ; Provision a Ubuntu 20.04 virtual machine
+├── asm                     ; Assembly source files
+│   ├── x86                 ; For i386
+│   │   ├── benchmark.asm   ; Measure the performance of int x080
+│   │   └── getpid.asm      ; Execute the getpid system call
+│   └── x86-64              ; for amd64
+│       ├── benchmark.asm   ; Measure the performance of syscall
+│       └── getpid.asm      ; Execute the getpid system call
+└── c                       ; C source files
+    ├── benchmark.c         ; Compare the cost system call/function call
+    └── getpid.c            ; Execute the getpid system call
+----
+
+To build and run assembly code:
+
+[source]
+----
+# apt install nasm
+$ nasm -f elf64 -g -F dwarf file.asm
+$ ld -o file file.o
+$ ./file
+----
+
+To build and run C code:
+
+[source]
+----
+# apt install build-essential
+$ gcc -o file file.c
+$ ./file
+----
+
+
+## Building glibc
+
+[source]
+---
+sudo apt install build-essential bison
+git clone https://sourceware.org/git/glibc.git
+cd glibc
+git checkout glibc-2.34
+mkdir -p glibc-build
+mkdir -p glibc-install
+cd glibc-build/
+../configure --prefix="$(realpath "../glibc-install")"
+time make -j8
+---
+
+Check the file `posix/getpid.o`:
+
+[source]
+----
+root@vagrant:/home/vagrant/glibc/glibc-install# objdump -ldr posix/getpid.o
+
+posix/getpid.o:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000000000 <__getpid>:
+__getpid():
+/home/vagrant/glibc/posix/../sysdeps/unix/syscall-template.S:91
+   0:	f3 0f 1e fa          	endbr64
+   4:	b8 27 00 00 00       	mov    $0x27,%eax
+   9:	0f 05                	syscall
+/home/vagrant/glibc/posix/../sysdeps/unix/syscall-template.S:93
+   b:	c3                   	retq
+----
